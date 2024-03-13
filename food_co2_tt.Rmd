@@ -16,17 +16,20 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
-```{r}
+```{r, include=FALSE}
 library(tidytuesdayR)
 library(tidyverse)
 library(ggplot2)
 library(ggrepel)
 library(broom)
+library(reactable)
+library(readr)
+library(kableExtra)
 ```
 
 Data
 
-```{r}
+```{r, include=FALSE}
 tuesdata <- tidytuesdayR::tt_load('2020-02-18')
 tuesdata <- tidytuesdayR::tt_load(2020, week = 8)
 
@@ -48,9 +51,8 @@ rename(co2_emission = co2_emmission)
 
 Variables of interest
 
-Review
-
 ```{r}
+#Review the data
 #130 countries and 11 food categories
 food_consumption %>% count(country) 
 
@@ -131,7 +133,7 @@ food_consumption %>%
   ggplot(aes(x = reorder(food_category, avg_co2perfood), y = avg_co2perfood, fill = food_category)) + 
   scale_y_log10()+
   geom_point()+
-  geom_label_repel(aes(label=food_category, size=NULL), nudge_y=0.5)+
+  geom_label_repel(aes(label=food_category, size=NULL), nudge_y=-0.35, nudge_x = 0.25)+
   theme(
     legend.position= "none",
     axis.text.x = element_blank())+
@@ -141,12 +143,6 @@ food_consumption %>%
   
 ```
 
-```{r}
-#What if we looked at emissions by type of diet? vegan vs. all
-
-#first create indicator
-
-```
 
 ```{r}
 #from video
@@ -194,10 +190,10 @@ food_consumption %>%
 #residuals show how energy inefficient some foods are (Lamb & Goat, Beef)
 ```
 
-```{r}
+```{r, include=FALSE}
 #top 5 consumers of each food category
 #from video
-
+#I didn't find this helpful/meaningful
 food_consumption %>%
   group_by(food_category) %>%
   top_n(consumption, n = 5) %>% 
@@ -213,26 +209,32 @@ food_consumption %>%
 #food_consumption %>%
  # select(food_category) %>%
 #  unique()
+food_consumption <- food_consumption %>%
+  mutate(food_type = if_else(food_category %in% c("Pork", "Poultry", "Beef", "Lamb & Goat", "Fish", "Eggs", "Milk - inc. cheese"), "Meat", "Vegan"))
 
-#food_consumption %>%
- # mutate(vegan = if_else(food_category %in% c("Wheat and Wheat Products", "Rice", "Soybeans", #"Nuts inc. Peanut Butter"), "Non Animal Product", "Animal Product"))%>%
-  #count(food_category, vegan) %>%
- # select(consumption, co2_emission, vegan) %>%
-#  gather(key = "type", value = "value", -vegan) %>%
- # mutate(type = as.factor(type), 
-  #       vegan = as.factor(vegan)) %>%
-  #group_by(type) %>%
-  #do(test = t.test(value~vegan, data = (.))) %>%
-  #tidy(test)%>%
-  #print()
-#didn't work for me, getting error
+food_consumption %>%
+  group_by(food_type) %>%
+  summarize(mean_consumption = mean(consumption),
+                                    mean_co2 = mean(co2_emission))
+
+#We can conduct a two sample t-test with equal variance to determine if there is a significant difference between the mean of consumption (or co2_emission) between food consumed that it meat-based and food consumed that is plant-based (vegan)
+t.test(consumption ~ food_type, data=food_consumption, var.equal=TRUE)
+#the result is a large p-value and similar means: mean consumption in meat group, 29.04; mean consumption in vegan group, 26.48.
+t.test(co2_emission ~ food_type, data=food_consumption, var.equal=TRUE)
+#The result is a very small p-value (less than 0.00) and very different means. mean co2-emission in meat group, 108.47, mean co2-emission in vegan group, 14.74. 
+#These t-tests suggest that there is not a significant difference in consumption levels between meat and vegan groups but a very significant difference between the meat group and the vegan group in terms of co2 emissions.
+
+food_consumption %>% 
+  group_by(food_type) %>% 
+  summarize(total_consumption = sum(consumption)) %>% table()
+#With that said, in general, more vegan foods are consumed world-wide than meat foods by about 2:1 (13,769.92 meat, 26427.96 vegan)
 ```
 
 ```{r}
 #what percentage of a country's food consumption is plant-based? 
 #I used pivot_wider & created new variables 'meat_consumption' and 'plant_consumption' that group together consumption in these two categories, and then used these new totals to calculate this ratio
 food_wider <- food_consumption %>%
-  select(-co2_emission) %>%
+  select(-co2_emission, -food_type) %>%
   pivot_wider(names_from = food_category, values_from = consumption) %>%
   rename_with( ~ tolower(gsub(" ", "", .x, fixed = TRUE)))  %>%
   group_by(country) %>%
@@ -242,26 +244,62 @@ food_wider <- food_consumption %>%
          plant_consumption = sum(wheatandwheatproducts + rice+
                                    soybeans+nutsinc.peanutbutter),
          lacto_ova_plant = sum(plant_consumption + eggs + `milk-inc.cheese`),
+         ova_plant = sum(plant_consumption + eggs),
          perc_plantbased = round(plant_consumption/(meat_consumption+plant_consumption),2),
          perc_meatbased = round(meat_consumption/(meat_consumption+plant_consumption),2),
-         perc_ova_plant = round(lacto_ova_plant/(meat_consumption+plant_consumption),2))
-#top ten countries for being plantbased
-food_wider %>%
-  select(country, perc_meatbased, perc_plantbased) %>%
-  arrange(desc(perc_plantbased)) %>%
-  print(n=10)
+         perc_lacto_ova_plant = round(lacto_ova_plant/(meat_consumption+plant_consumption),2),
+         perc_ova_plant = round(ova_plant/(meat_consumption+plant_consumption),2))
 
-#top ten countries for being meatbased
-
-food_wider %>%
-  select(country, perc_meatbased, perc_plantbased, perc_ova_plant) %>%
-  arrange(desc(perc_meatbased)) %>%
-  print(n=10)
-
-#top ten by consumption of plant + eggs + cheese/milk
-food_wider %>%
-  select(country, perc_meatbased, perc_plantbased, perc_ova_plant) %>%
-  arrange(desc(perc_ova_plant)) %>%
-  print(n=10)
 ```
 
+```{r}
+#top 5 countries for being plantbased
+top5_plantbased <- food_wider %>%
+  select(country, perc_plantbased) %>%
+  arrange(desc(perc_plantbased)) %>%
+  print(n=5)
+
+kable(top5_plantbased[1:5, ],
+      booktabs = T,
+      col.names = c("Country","Percent of consumption plant-based, by kg per person"), 
+      caption = "Top 5 Countries with the highest consumption of plant-based foods") %>% 
+  footnote(general = "ADD",
+           general_title = "Data Source") %>% 
+  kable_styling(full_width = T)
+
+#top 5 countries for being meatbased
+
+top5_meatbased <- food_wider %>%
+  select(country, perc_meatbased) %>%
+  arrange(desc(perc_meatbased)) %>%
+  print(n=5)
+
+#top 5 by consumption of plant + eggs + cheese/milk
+top5_lacto_ova <- food_wider %>%
+  select(country, perc_lacto_ova_plant) %>%
+  arrange(desc(perc_lacto_ova_plant)) %>%
+  print(n=5)
+
+#top 5 by consumption of plant + eggs
+top5_ova_plant <- food_wider %>%
+  select(country, perc_ova_plant) %>%
+  arrange(desc(perc_ova_plant)) %>%
+  print(n=5)
+
+```
+
+```{r}
+#add a scatterplot where x=country, y=co2_emission, and size = consumption
+food_consumption %>% group_by(country) %>%
+  ggplot(aes(x=consumption, y=co2_emission))+ 
+  geom_point()+
+  theme(
+    axis.text.x = element_blank())
+```
+
+
+Around the world people eat more plant-based products (2:1) than meat. Plant-based products emit less co2 emissions than most meat-based products, especially beef, lamb, and goat. For some countries, most of their consumption is plant-based (i.e., Liberia's consumption is 82% plant based) while others, mostly animal-based (i.e., Finland, 86%). When we look at foods in a lacto-ova vegetarian diet (eggs, milk & cheese + plants), we find that India's consumption, for example, is 96% plant, egg, and dairy-based. If we go a step further and create a group representing an ova vegetarian diet (eggs + plants), Liberia's consumption of these products comes in the highest at 84%. Since eggs are an efficient food as well in terms of co2 emissions, comparing an ova-vegetarian group to lacto-ova vegetarian and vegan may be meaningful.
+
+There are many limitations to this analysis. For one, food consumption ("consumption") is measured as kilograms of food per person per year. There could be some significant bias here, in that vegetables may weigh less that animal products. For example, the nutritional value of a kilogram of milk or cheese is very different from that of a kilogram of spinach. Second, analysis is done in a global accurate and does not take into account cultural differences across countries that account for population's food choices. For example, pork consumption is nil or very low in countries with large Muslim populations. 
+
+Future analysis: Rather than looking at consumption measured in kilograms per person, a more meaningful analysis might be to consider consumption as calories consumed per person per year by food product. It would also be interesting to see what the relationship is between a country's GDP and the proportion of their diet that is plant-based. The intention behind this data may have been to shine light on the fact that animal products are less energy efficient than plant-based products. However, this propensity towards a plant-based diet may have more to do with a country's income than climate awareness.
