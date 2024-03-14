@@ -88,6 +88,7 @@ food_consumption %>%
 
 Visualize
 
+1. Boxplot showing log distribution of consumption and co2_emission. From Andrew Couch's video.
 ```{r}
 #Distributions of CO2 and consumption are not as proportional as it appeared at first
 options(scipen = 999)
@@ -101,6 +102,7 @@ food_consumption %>%
   scale_y_log10()
 ```
 
+2. Bar chart showing average the average energy efficiency of each food category. Meat products like lamb & goat and beef are high CO 2 emitters per kg consumed, wheat and wheat products as well as soybeans are the most energy efficient.
 ```{r}
 #Consumption = kg eaten by each person/year
 #Co2 emission = kg of co2 produced by each person/year
@@ -123,40 +125,7 @@ food_consumption %>%
 #it is interesting that lamb & goat is less "efficient" than beef
 ```
 
-```{r}
-#scatterplot, consumption vs. co2_emission, grouped by food_category
-
-food_consumption %>%
-  filter(consumption > 0 & co2_emission >0) %>%
-  mutate(co2perfood = co2_emission/consumption) %>%
-  group_by(food_category) %>%
-  summarize(avg_co2perfood = mean(co2perfood)) %>%
-  ggplot(aes(x = reorder(food_category, avg_co2perfood), y = avg_co2perfood, fill = food_category)) + 
-  scale_y_log10()+
-  geom_point()+
-  geom_label_repel(aes(label=food_category, size=NULL), nudge_y=-0.35, nudge_x = 0.25)+
-  theme(
-    legend.position= "none",
-    axis.text.x = element_blank())+
-  labs(x = "Food Categories", y = "Average CO2 Consumption per Food Category",
-                  title = "Average Efficiency of Food Consumed by Food Category",
-       subtitle = "data source: ")
-  
-```
-
-
-```{r}
-#from video
-food_consumption %>%
-  select(-country) %>%
-  gather(key = "feature", value = "value", -food_category) %>%
-  ggplot(aes(x = food_category, y = value, color = food_category)) +
-  geom_boxplot() +
-  coord_flip()+
-  scale_y_log10()+
-  facet_wrap(~feature, scales = "fixed")+
-  theme(legend.position = "none")
-```
+3. Scatterplot showing the average CO2 consumption by food category. A different way to view what we just saw in the bar plot. The ab-line represents complete efficiency, where the ratio between consumption and co2_emission is 1.
 
 ```{r}
 #from video
@@ -173,7 +142,8 @@ food_consumption %>%
   theme(legend.position = "none")
 ```
 
-```{r}
+
+```{r, include=FALSE}
 #from video
 food_consumption %>%
   group_by(food_category) %>%
@@ -191,22 +161,9 @@ food_consumption %>%
 #residuals show how energy inefficient some foods are (Lamb & Goat, Beef)
 ```
 
-```{r, include=FALSE}
-#top 5 consumers of each food category
-#from video
-#I didn't find this helpful/meaningful
-food_consumption %>%
-  group_by(food_category) %>%
-  top_n(consumption, n = 5) %>% 
-  arrange(food_category, -consumption) %>%
-  ungroup() %>%
-  count(country, sort = T)%>%
-  filter(n != 1)
-```
-
 ```{r}
 #compare animal to non-animal products in terms of co2 emission
-#from video
+
 #food_consumption %>%
  # select(food_category) %>%
 #  unique()
