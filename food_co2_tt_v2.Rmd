@@ -1,5 +1,5 @@
 ---
-title: "Food Consumption and CO2 Emissions"
+title: "Global Food Consumption and CO2 Emissions"
 author: "Lyndsay Miles"
 date: "`r Sys.Date()`"
 output: html_document
@@ -7,7 +7,7 @@ output: html_document
 
 ## Sources
 
-I got the data for this exploration from the Tidy Tuesday project(<https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-02-18/readme.md>), February 18, 2020. I also reviewed Andrew Couch's EDA of this dataset on YouTube (<https://www.youtube.com/watch?v=VKCPYet9qLM>).
+For this data exploration I used a data set from the Tidy Tuesday project (<https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-02-18/readme.md>), February 18, 2020. I also reviewed Andrew Couch's EDA of this dataset, available on YouTube (<https://www.youtube.com/watch?v=VKCPYet9qLM>).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -52,7 +52,7 @@ rename(co2_emission = co2_emmission)
 
 I conducted a cursory review to check for NA values and determine number of food categories per country. Each of the 130 countries has a row for each of the 11 food categories. There were no NA values. I left all 0 values in the data set. '0' values are present for 31 countries and the food categories to have a 0 value are soybeans (22), pork (8), and Lamb & Goat (1). Logically this makes sense to me, as soybeans are not a common food staple in all countries and pork is not consumed in some countries, especially those with large Muslim populations.
 
-```{r, echo=FALSE}
+```{r, include=FALSE, echo=FALSE}
 #Review the data
 #130 countries and 11 food categories
 food_consumption %>% count(country) 
@@ -70,7 +70,7 @@ food_consumption_0 <-
 countries_0consumption <- food_consumption %>%
   filter(consumption == "0") %>%
   group_by(country) %>%
-  print(n=31)
+  print(n=Inf)
 
 food_consumption %>% 
   filter(consumption == "0" & food_category == "Pork") %>%
@@ -83,6 +83,20 @@ food_consumption %>%
   group_by(country) %>%
   arrange(country) %>% 
   print(n=Inf)
+```
+Here is a list of the 11 food categories.
+```{r, echo=FALSE}
+print(unique(food_consumption$food_category))
+```
+
+Here is a table of the countries with cases of '0' consumption in a food category.
+```{r, echo=FALSE}
+#table of countries with cases of 0 consumption
+kable(countries_0consumption[,1:2 ],
+      booktabs = T,
+      col.names = c("Country","Food Category"), 
+      caption = "Countries with a 0 data value in a food category") %>% 
+  kable_styling(full_width = F)
 ```
 
 ## Visualizations
@@ -150,7 +164,7 @@ food_consumption %>%
 
 ```
 
-4.  Analysis:
+4.  Analysis: t-test
 
     I conducted a t-test comparing means between co2 emission related to animal products versus non-animal (vegan) products. I created new categories to assign food products to a "Meat" or "Vegan" group. In the "Meat" group is Pork, Poultry, Beef, Lamb & Goat, Fish, Milk inc. cheese, and Eggs. The remaining food products make up the "Vegan" group.
 
